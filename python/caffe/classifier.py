@@ -44,22 +44,7 @@ class Classifier(caffe.Net):
             image_dims = self.crop_dims
         self.image_dims = image_dims
 
-    def predict(self, inputs, oversample=True):
-        """
-        Predict classification probabilities of inputs.
-
-        Parameters
-        ----------
-        inputs : iterable of (H x W x K) input ndarrays.
-        oversample : boolean
-            average predictions across center, corners, and mirrors
-            when True (default). Center-only prediction when False.
-
-        Returns
-        -------
-        predictions: (N x C) ndarray of class probabilities for N images and C
-            classes.
-        """
+    def _predict(self, inputs, oversample, all_outs=False):
         # Scale to standardize input dimensions.
         input_ = np.zeros((len(inputs),
                            self.image_dims[0],
@@ -87,11 +72,54 @@ class Classifier(caffe.Net):
         for ix, in_ in enumerate(input_):
             caffe_in[ix] = self.transformer.preprocess(self.inputs[0], in_)
         out = self.forward_all(**{self.inputs[0]: caffe_in})
-        predictions = out[self.outputs[0]]
+        if all_outs:
+            outputs = self.outputs
+        else:
+            outputs = [self.outputs[0]]
+        predictions = {}
+        for o in outputs:
+            predictions[o] = out[o]
 
         # For oversampling, average predictions across crops.
         if oversample:
-            predictions = predictions.reshape((len(predictions) / 10, 10, -1))
-            predictions = predictions.mean(1)
+            for k, v in predictions.items():
+                predictions[k] = v.reshape((len(v) / 10, 10, -1))
+                predictions[k] = v.mean(1)
 
         return predictions
+
+    def predict(self, inputs, oversample=True):
+        """
+        Predict classification probabilities of inputs.
+
+        Parameters
+        ----------
+        inputs : iterable of (H x W x K) input ndarrays.
+        oversample : boolean
+            average predictions across center, corners, and mirrors
+            when True (default). Center-only prediction when False.
+
+        Returns
+        -------
+        predictions: (N x C) ndarray of class probabilities for N images and C
+            classes.
+        """
+        return _predict(self, inputs, oversample)[self.outputs[0]]
+
+    def predict_multi(self, inputs, oversample=True):
+        """
+        Predict classification probabilities of inputs.
+
+        Parameters
+        ----------
+        inputs : iterable of (H x W x K) input ndarrays.
+        oversample : boolean
+            average predictions across center, corners, and mirrors
+            when True (default). Center-only prediction when False.
+
+        Returns
+        -------
+        predictions: {output name: (N x C) ndarray of class probabilities for N
+            images and C classes} dict.
+        """
+        return _predict(self, inputs, oversample, True)
