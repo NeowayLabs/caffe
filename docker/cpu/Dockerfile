@@ -1,5 +1,5 @@
 FROM ubuntu:16.04
-LABEL maintainer caffe-maint@googlegroups.com
+LABEL maintainer "andre.boechat@neoway.com.br"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
@@ -27,10 +27,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV CAFFE_ROOT=/opt/caffe
 WORKDIR $CAFFE_ROOT
 
-# FIXME: use ARG instead of ENV once DockerHub supports this
-ENV CLONE_TAG=rc4
-
-RUN git clone -b ${CLONE_TAG} --depth 1 https://github.com/BVLC/caffe.git . && \
+# Using multilabel branch.
+RUN git clone https://github.com/NeowayLabs/caffe.git . && \
+    git checkout -f multilabel && \
     pip install --upgrade pip && \
     cd python && for req in $(cat requirements.txt) pydot; do pip install $req; done && cd .. && \
     mkdir build && cd build && \
